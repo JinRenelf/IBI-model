@@ -155,52 +155,51 @@ def lgMcal(variants_tensor, traits_tensor, varID, use_oneTopGD, topGD_index):
     # with [0], the original 2D array, array([[-3127.91831177,...]]),
     # becomes the format of 1D array, array([-3127.91831177,...]),thus consistent with the other output values
     # lgM_v0 is the 2D array; kxk if topGD; m_variants x k_traits if sGD
-    # lgMv0 = DriverSearch(BP_V0, V0)
-    #
-    # # collect the lgMv0_topGD for each trait in a 1D array; the lgM value for V0 group when using topGD as the driver
-    # lgMv0_topGD = []
-    # # collect the r between SD and topGD for each trait in a 1D array
-    # r = []
-    #
-    # if use_oneTopGD:  # collect the lgMv0_topGD and r for each trait in a 1D array specifically with kxk lgMv0
-    #     for m in range(0, len(traitIDs)):
-    #         lgMv0_topGD.append(lgMv0[m, m])  # with oneTOPGD, lgMv0 is kxk,since k top GD for k traits; here it selects
-    #         # the values of P(D0|topGD-k -> trait-k);
-    #     for j in topGD_index:  # topGD_index is a global variable obtained outside this function
-    #         r1 = stats.spearmanr(variants_tensor[i, :].to("cpu").numpy(), variants_tensor[j, :].to("cpu").numpy())[
-    #             0]
-    #         r.append(r1)
-    #     lgMv0_sGD = torch.zeros(len(traitIDs), device=device)
-    #     sGD = torch.zeros(len(traitIDs), device=device)
-    # else:
-    #     # with sGD, lgMv0 is m_variants x k_traits
-    #     lgMv0_sGD = torch.max(lgMv0, dim=0).values
-    #     sGD_index = torch.max(lgMv0, dim=0).indices
-    #
-    #     sGD = []
-    #     # collect the variant ID of sGD for each trait in a 1D array
-    #     for item in sGD_index:
-    #         sGD.append(varIDs[item])
-    #     sGD = np.array(sGD)
-    #
-    #     k = 0
-    #     # collect the lgMv0_topGD and r for each trait in a 1D array specifically with mxk lgMv0
-    #     # topGD_index is one output from GDsearch_all, a vector of K (#traits ordered in the original trait input file)
-    #     for j in topGD_index:
-    #         # a vector of K
-    #         lgMv0_topGD.append(lgMv0[j, k])
-    #         # [0] to get only the coefficient and ignore the p-values
-    #         r1 = stats.spearmanr(variants_tensor[i, :].to("cpu").numpy(), variants_tensor[j, :].to("cpu").numpy())[0]
-    #         r.append(r1)  # a vector of K
-    #         k = k + 1
-    # lgMv0_topGD = torch.tensor(lgMv0_topGD)
-    # r = torch.tensor(r)
-    #
-    # if use_oneTopGD:
-    #     lgM_v1v0 = lgMv1_SD + lgMv0_topGD
-    # else:
-    #     lgM_v1v0 = lgMv1_SD + lgMv0_sGD
-    lgMv0_sGD, lgMv0_topGD, lgM_v1v0, sGD, r, i, varID=0,0,0,0,0,0,0
+    lgMv0 = DriverSearch(BP_V0, V0)
+
+    # collect the lgMv0_topGD for each trait in a 1D array; the lgM value for V0 group when using topGD as the driver
+    lgMv0_topGD = []
+    # collect the r between SD and topGD for each trait in a 1D array
+    r = []
+
+    if use_oneTopGD:  # collect the lgMv0_topGD and r for each trait in a 1D array specifically with kxk lgMv0
+        for m in range(0, len(traitIDs)):
+            lgMv0_topGD.append(lgMv0[m, m])  # with oneTOPGD, lgMv0 is kxk,since k top GD for k traits; here it selects
+            # the values of P(D0|topGD-k -> trait-k);
+        for j in topGD_index:  # topGD_index is a global variable obtained outside this function
+            r1 = stats.spearmanr(variants_tensor[i, :].to("cpu").numpy(), variants_tensor[j, :].to("cpu").numpy())[
+                0]
+            r.append(r1)
+        lgMv0_sGD = torch.zeros(len(traitIDs), device=device)
+        sGD = torch.zeros(len(traitIDs), device=device)
+    else:
+        # with sGD, lgMv0 is m_variants x k_traits
+        lgMv0_sGD = torch.max(lgMv0, dim=0).values
+        sGD_index = torch.max(lgMv0, dim=0).indices
+
+        sGD = []
+        # collect the variant ID of sGD for each trait in a 1D array
+        for item in sGD_index:
+            sGD.append(varIDs[item])
+        sGD = np.array(sGD)
+
+        k = 0
+        # collect the lgMv0_topGD and r for each trait in a 1D array specifically with mxk lgMv0
+        # topGD_index is one output from GDsearch_all, a vector of K (#traits ordered in the original trait input file)
+        for j in topGD_index:
+            # a vector of K
+            lgMv0_topGD.append(lgMv0[j, k])
+            # [0] to get only the coefficient and ignore the p-values
+            r1 = stats.spearmanr(variants_tensor[i, :].to("cpu").numpy(), variants_tensor[j, :].to("cpu").numpy())[0]
+            r.append(r1)  # a vector of K
+            k = k + 1
+    lgMv0_topGD = torch.tensor(lgMv0_topGD)
+    r = torch.tensor(r)
+
+    if use_oneTopGD:
+        lgM_v1v0 = lgMv1_SD + lgMv0_topGD
+    else:
+        lgM_v1v0 = lgMv1_SD + lgMv0_sGD
     return lgMv1_SD, lgMv0_sGD, lgMv0_topGD, lgM_v1v0, sGD, r, i, varID
 
 
@@ -339,7 +338,7 @@ if __name__ == '__main__':
     # subIDs, varIDs, variants_tensor, df_variants = read_variantsF(
     #     os.path.join(root_path, 'chrm21__KidsFirst_snp01_dominant_withCorrect_Index_RR1.csv'), variants_size=1000)
     subIDs, varIDs, variants_tensor, df_variants = read_variantsF(
-        os.path.join(root_path, 'chrm21__KidsFirst_snp01_dominant_withCorrect_Index_RR1.pkl.gzip'), variants_size=None)
+        os.path.join(root_path, 'chrm21__KidsFirst_snp01_dominant_withCorrect_Index_RR1.pkl.gzip'), variants_size=100)
     subIDs_BP, traitIDs, traits_tensor = read_traitsF(
         os.path.join(root_path, 'Phenotype__KidsFirst_withCorrect_Index.csv'))
 
